@@ -1,13 +1,32 @@
 # -*- coding: utf-8 -*-
 import overpass
+import requests
+import osrm
+osrm.RequestConfig.host = "router.project-osrm.org"
 
 def main():
     coords01 = ["45.41090,9.27177","45.41876,9.27240","45.41907,9.26239","45.42449,9.26539","45.42636,9.25609","45.4186, 9.25411"]
-    #coords01 =["45.4186, 9.25411","45.41876,9.27240"]
+    
+    #maxspeeds = getMaxspeedTest(coords01)
+    #print maxspeeds
+    
+    distances = getDistanceTest(coords01)
+    print distances
+    
+def getMaxSpeedTest(coords):
     maxspeeds = []
-    for coord in coords01:
+    for coord in coords:
         maxspeeds.append(getMaxspeed(coord))
-        
+    return maxspeeds
+
+def getDistanceTest(coords):
+    distances = []
+    i = 0
+    while i<len(coords)-2:
+        distances.append(getDistance(coords[i],coords[i+1]))
+        i = i + 1
+    return distances
+    
 def getMaxspeed(coord):
     api = overpass.API()
     query = '(around:1,%s)' % (coord)
@@ -68,9 +87,18 @@ def getMaxspeed(coord):
     print road,"Velocità massima:",maxspeed,"km/h"
     return maxspeed
 
+def getDistance(inputCoord1,inputCoord2):
+    coord1 = swapCoords(inputCoord1)
+    coord2 = swapCoords(inputCoord2)
+    result = osrm.simple_route(coord1, coord2)
+    #print result
+    distance = result["routes"][0]["legs"][0]["distance"]
+    print distance, "metri"
+    return distance
+    
+def swapCoords(strCoord):
+    coord = strCoord.split(",")
+    return (float(coord[1]),float(coord[0]))
+    
 if __name__ == '__main__':
-    main()
-
-    
-    
-    
+    main()  
