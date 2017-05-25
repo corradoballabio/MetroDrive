@@ -16,29 +16,42 @@
         var fromProjection = new OpenLayers.Projection("EPSG:4326");   // Transform from WGS 1984
         var toProjection = new OpenLayers.Projection("EPSG:900913"); // to Spherical Mercator Projection
         var cntrposition = new OpenLayers.LonLat(lon, lat).transform( fromProjection, toProjection);
+        var markers;
+        
+        function mark()
+        {
+        	var temp = document.getElementById("txt").value
+        	//se l'ultimo carattere è una virgola, allora lo elimino per facilitare lo split sulla virgola nelle righe successive
+        	if (temp[temp.length-1]==","){
+        		temp = temp.substring(0,temp.length-1)
+        	}
+        	temp = temp.replace(/\"/g,"")
+        	markers = new OpenLayers.Layer.Markers( "Markers" );
+        	var coordinates = temp.split(",")
+        	for (var i=0; i < coordinates.length; i=i+2){
+        		var position = new OpenLayers.LonLat(coordinates[i+1],coordinates[i]).transform(fromProjection, toProjection);
+        		console.log(position)
+        		markers.addMarker(new OpenLayers.Marker(position));
+        		console.log(markers)
+        	}
+        	map.addLayer(markers)
+        };
         function init()
         {
             map = new OpenLayers.Map("Map",{
-                controls:[
-                    new OpenLayers.Control.PanZoomBar(),                        
-                    new OpenLayers.Control.LayerSwitcher({}),
-                    new OpenLayers.Control.Permalink(),
-                    new OpenLayers.Control.MousePosition({}),
-                    new OpenLayers.Control.ScaleLine(),
-                    new OpenLayers.Control.OverviewMap(),
-                 ]
+				//rimossi i controlli così si può controllare la mappa trascinando col muose invece di usare le frecce e lo slider dello zoom
             }
             );
-            var mapnik = new OpenLayers.Layer.OSM("MAP"); 
-            var markers = new OpenLayers.Layer.Markers( "Markers" );
-            map.addLayers([mapnik,markers]);
+            var mapnik = new OpenLayers.Layer.OSM("MAP");
+            
+            
             map.addLayer(mapnik);
             map.setCenter(cntrposition, zoom);
-            markers.addMarker(new OpenLayers.Marker(cntrposition));
+            
             var click = new OpenLayers.Control.Click();
             map.addControl(click);
             click.activate();
-         };
+        };
 
 
 		OpenLayers.Control.Click = OpenLayers.Class(OpenLayers.Control, {               
@@ -79,6 +92,7 @@
 <body onload='init();'>
     <div id="Map" style="height: 650px" ></div>
     <textarea rows="10" cols="268" id="txt"></textarea>
+    <input id="clickMe" type="button" value="Mark points" onclick="mark();" />
 </body>
 
 </html>
