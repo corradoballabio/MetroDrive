@@ -22,3 +22,23 @@ class Viaggio:
         
     def get_punti(self):
         return self.punti
+
+    def getCoords(self):
+        coords = []
+        for punto in self.punti:
+            coords.append(str(punto.latitudine)+","+str(punto.longitudine))
+        return coords
+
+    def getCoordsOsrm(self):
+        coords = self.getCoords()
+        return self.toOsrmFormat(coords)
+
+    def toOsrmFormat(coords):
+        swappedCoords = []
+        for coord in coords:
+            coord = strCoord.split(",")
+            swappedCoords.append((float(coord[1]),float(coord[0]))) 
+        return swappedCoords
+
+    def numPunti(self):
+        return len(self.punti)
