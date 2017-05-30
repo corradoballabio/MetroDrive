@@ -34,6 +34,7 @@ class Viaggio:
         return self.toOsrmFormat(coords)
 
     def toOsrmFormat(coords):
+        #Le api OSM utilizzano coordinate in formato Longitudine, Latitudine, sottoforma di tupla di float
         swappedCoords = []
         for coord in coords:
             coord = strCoord.split(",")
