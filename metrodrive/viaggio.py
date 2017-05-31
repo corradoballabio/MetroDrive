@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from datetime import datetime
 
 class Viaggio:
@@ -7,6 +8,33 @@ class Viaggio:
         self.tempo_fine = tend
         self.punti = punti_list
     
+    def __str__(self):
+	    return "Id viaggio:\t"+str(self.id_)+"\nInizio:\t\t"+str(self.tempo_inizio)+"\nFine:\t\t"+str(self.tempo_fine)+"\nNumero punti:\t"+str(len(self.punti))
+
+    def printPunti(self):
+    	for punto in self.punti:
+    		print punto,"\n"
+
+    def setDistances(self,distances):
+    	numPunti = len(self.punti)
+    	if len(distances)!=numPunti:
+    		print "num punti != num distanze"
+    	else:
+    		i = 0
+    		while i<numPunti:
+    			self.punti[i].setDistance(distances[i])
+    			i = i+1    
+
+    def setMaxSpeeds(self,speeds):
+    	numPunti = len(self.punti)
+    	if len(speeds)!=numPunti:
+    		print "num punti != num velocità"
+    	else:
+    		i = 0
+    		while i<numPunti:
+    			self.punti[i].setMaxSpeed(speeds[i])
+    			i = i+1
+
     def addPoint(self, punto):
         self.punti.append(punto)
         
@@ -33,13 +61,13 @@ class Viaggio:
         coords = self.getCoords()
         return self.toOsrmFormat(coords)
 
-    def toOsrmFormat(coords):
+    def toOsrmFormat(self,coords):
         #Le api OSM utilizzano coordinate in formato Longitudine, Latitudine, sottoforma di tupla di float
         swappedCoords = []
         for coord in coords:
-            coord = strCoord.split(",")
+            coord = coord.split(",")
             swappedCoords.append((float(coord[1]),float(coord[0]))) 
         return swappedCoords
 
-    def numPunti(self):
-        return len(self.punti)
+    #def numPunti(self):
+        #return len(self.punti)
