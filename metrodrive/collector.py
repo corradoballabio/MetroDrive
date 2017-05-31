@@ -6,6 +6,8 @@ import urllib2
 from punto import Punto
 from viaggio import Viaggio
 
+#far diventare una classe
+
 maxlat = -90
 maxlon = -180
 minlat = 90
