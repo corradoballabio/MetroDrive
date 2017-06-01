@@ -2,16 +2,9 @@ from bs4 import BeautifulSoup as soup
 import json
 import os, glob, sys
 import urllib2
-
 from punto import Punto
 from viaggio import Viaggio
-
-#far diventare una classe
-
-maxlat = -90
-maxlon = -180
-minlat = 90
-minlon = 180
+import countries
 
 def gpx_to_viaggi(filename):
     
@@ -58,27 +51,33 @@ def gpx_to_viaggi(filename):
     
 def viaggi_to_json_txt(lista_viaggi, filename_output ):
     
-    global maxlat, maxlon, minlat, minlon
-    
-    ftxtout = open(filename_output, "w")
-    
     lout = []
+    cc = countries.CountryChecker("borders/TM_WORLD_BORDERS-0.3.shp")
     
     for v in lista_viaggi:
-        lv = [v.id_, v.tempo_inizio, v.tempo_fine]
-        for p in v.punti:
-            if float(p.latitudine) > maxlat: maxlat = float(p.latitudine)
-            if float(p.latitudine) < minlat: minlat = float(p.latitudine)
-            if float(p.longitudine) > maxlon: maxlon = float(p.longitudine)
-            if float(p.longitudine) < minlon: minlon = float(p.longitudine)
-            lv.append([p.timestamp, p.latitudine, p.longitudine, p.velocita])
-        lout.append(lv)
         
-    json.dump(lout, ftxtout)
+        lv = [v.id_, v.tempo_inizio, v.tempo_fine]
+        in_italy = True
+        
+        for p in v.punti:
+  
+            point = countries.Point(float(p.latitudine), float(p.longitudine))
+            if cc.getCountry(point) == None or cc.getCountry(point).iso != "IT": 
+                in_italy = False
+                break
+            lv.append([p.timestamp, p.latitudine, p.longitudine, p.velocita])
+            
+        if in_italy:
+            lout.append(lv)
     
-    ftxtout.close()
-    
-    print filename_output
+    print len(lout)  
+     
+    if len(lout) > 0: 
+        
+        ftxtout = open(filename_output, "w")
+        json.dump(lout, ftxtout)
+        ftxtout.close()
+        print filename_output
     
 def json_txt_to_viaggi(filename_input):
     
@@ -183,7 +182,6 @@ def main1():
     for gpx_filename in gpx_files:
     
         lv = gpx_to_viaggi(gpx_filename)
-    
         filename_out = path_out + gpx_filename.split(".")[0].split("/")[-1] + ".txt"
       
         viaggi_to_json_txt(lv, filename_out)
