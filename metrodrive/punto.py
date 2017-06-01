@@ -6,13 +6,19 @@ class Punto:
         self.latitudine = lat
         self.longitudine = lon
         self.velocita = speed
-        self.maxspeed = "-1"
-        self.distance = "-1"
+        self.maxspeed = -3
+        self.distance = -3
 
-    def toString(self):
-        return "Time: "+str(self.timestamp)+", Lat: "+str(self.latitudine)+", Lon: "+str(self.longitudine)+", Effective Speed: "+str(self.velocita)+", Max Speed: "+str(self.maxspeed)+", Distance: "+str(self.distance)
+    def __str__(self):
+        return "Time:\t\t"+str(self.timestamp)+"\nLat:\t\t"+str(self.latitudine)+"\nLon:\t\t"+str(self.longitudine)+"\nSpeed:\t\t"+str(self.velocita)+"\nMax Speed:\t"+str(self.maxspeed)+"\nDistance:\t"+str(self.distance)
         
     def get_date(self):
         fmt = "%Y-%m-%dT%H:%M:%SZ"
         ret = datetime.strptime(self.timestamp,fmt)
         return ret
+
+    def setMaxSpeed(self,maxspeed):
+        self.maxspeed = int(maxspeed)
+
+    def setDistance(self,distance):
+        self.distance = int(distance)

@@ -10,7 +10,7 @@ def gpx_to_viaggi(filename):
     
     ftrace = open(filename, "r") 
     gpx_trace = ftrace.read()
-    soup_trace = soup(gpx_trace)
+    soup_trace = soup(gpx_trace,"html.parser")
     
     nseg = 0
     file_id = filename.split(".")[0].split("/")[-1]
@@ -36,7 +36,7 @@ def gpx_to_viaggi(filename):
                 if lasttime == "": new_viaggio.tempo_inizio = time #primo punto
                 lasttime = time
                 #print lat, lon, time, speed
-                new_point = Punto(time,lat,lon,speed)
+                new_point = Punto(time,lat,lon,int(float(speed)*18/5))
                 new_viaggio.addPoint(new_point)
         
         if len(new_viaggio.punti) > 0: 
