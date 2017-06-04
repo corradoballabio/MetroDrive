@@ -98,7 +98,7 @@ def json_txt_to_viaggi(filename_input):
             lat = p[1]
             lon = p[2]
             speed = p[3]
-            new_point = Punto(time, lat, lon, speed)
+            new_point = Punto(time, lat, lon, int(float(speed)*18/5))
             new_viaggio.addPoint(new_point)
         lout.append(new_viaggio)
         

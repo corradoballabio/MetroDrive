@@ -8,6 +8,16 @@ class Viaggio:
         self.tempo_fine = tend
         self.punti = punti_list
     
+    def toJSON(self):
+    	idp = "\"id\" : \""+str(self.id_)+"\""
+    	tinizio = "\"tempo_inizio\" : \""+str(self.tempo_inizio)+"\""
+    	tfine = "\"tempo_fine\" : \""+str(self.tempo_fine)+"\""
+    	punti = "\"punti\" : ["
+    	for punto in self.punti:
+    		punti = punti + punto.toJSON() + ","
+    	punti = punti[0:punti.rfind(",")] + "]"
+    	return str("{ "+idp+", "+tinizio+", "+tfine+", "+punti+" }")
+
     def __str__(self):
 	    return "Id viaggio:\t"+str(self.id_)+"\nInizio:\t\t"+str(self.tempo_inizio)+"\nFine:\t\t"+str(self.tempo_fine)+"\nNumero punti:\t"+str(len(self.punti))
 
@@ -18,7 +28,7 @@ class Viaggio:
     def setDistances(self,distances):
     	numPunti = len(self.punti)
     	if len(distances)!=numPunti:
-    		print "num punti != num distanze"
+    		print "num punti != num distanze: ",numPunti,"!=",len(distances)
     	else:
     		i = 0
     		while i<numPunti:

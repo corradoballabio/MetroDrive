@@ -9,8 +9,17 @@ class Punto:
         self.maxspeed = -3
         self.distance = -3
 
+    def toJSON(self):
+        timestamp = "\"timestamp\" : \""+str(self.timestamp)+"\""
+        lat = "\"lat\" : \""+str(self.latitudine)+"\""
+        lon = "\"lon\" : \""+str(self.longitudine)+"\""
+        vel = "\"vel\" : \""+str(self.velocita)+"\""
+        maxvel = "\"maxvel\" : \""+str(self.maxspeed)+"\""
+        dist = "\"dist\" : \""+str(self.distance)+"\""
+        return str("{ "+timestamp+", "+lat+", "+lon+", "+vel+", "+maxvel+", "+dist+" }")
+
     def __str__(self):
-        return "Time:\t\t"+str(self.timestamp)+"\nLat:\t\t"+str(self.latitudine)+"\nLon:\t\t"+str(self.longitudine)+"\nSpeed:\t\t"+str(self.velocita)+"\nMax Speed:\t"+str(self.maxspeed)+"\nDistance:\t"+str(self.distance)
+        return "Time:\t\t"+str(self.timestamp)+"\nLat:\t\t"+str(self.latitudine)+"\nLon:\t\t"+str(self.longitudine)+"\nSpeed:\t\t"+str(self.velocita)+" km/h"+"\nMax Speed:\t"+str(self.maxspeed)+" km/h"+"\nDistance:\t"+str(self.distance)+" m"
         
     def get_date(self):
         fmt = "%Y-%m-%dT%H:%M:%SZ"
