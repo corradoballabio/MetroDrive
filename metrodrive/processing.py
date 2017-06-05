@@ -3,7 +3,6 @@ import math
 import sys
 import overpass
 import osrm
-osrm.RequestConfig.host = "localhost:5000"
 
 from viaggio import Viaggio
 from punto import Punto
@@ -17,29 +16,44 @@ def main():
         #print "Viaggio",i,"composto da",len(viaggio.punti),"punti."
         i = i + 1
 
-    viaggio = viaggi[15]
-    #viaggio.punti = viaggio.punti[:30]
+    viaggio = viaggi[21]
+    #viaggio.punti = viaggio.punti[:40]
     distTot, speedingDistance = analyze(viaggio)
-    print "Distanza totale:",int(distTot),"m"
-    print "Distanza sopra i limiti:",speedingDistance,"m"
 
 def analyze(viaggio):
+    '''
+    Calcola gli indici di un viaggio.
+
+    :type viaggio: viaggio
+    :param viaggio: L'oggetto viaggio del quale si vogliono calcolare gli indici
+    '''
     print "Viaggio composto da",len(viaggio.punti),"punti."
     
-    speeds = getMaxSpeeds(viaggio,False)
+    speeds = getMaxSpeeds(viaggio)
     viaggio.setMaxSpeeds(speeds)
     
-    distTot, distances = getDistances(viaggio,False)
+    distTot, distances = getDistances(viaggio)
     viaggio.setDistances(distances)
+    viaggio.removeClosePoints()
     speedingDistance = getSpeedingDistance(viaggio)
+
+    print "Distanza totale:",int(distTot),"m"
+    print "Distanza sopra i limiti:",speedingDistance,"m"
 
     return distTot, speedingDistance
 
 def getSpeedingDistance(viaggio):
+    '''
+    Usa il metodo dell'interpolazione lineare per calcolare quanti metri sopra i limiti di velocità sono stati percorsi durante il viaggio.
+
+    :type viaggio: viaggio
+    :param viaggio: L'oggetto viaggio del quale si vogliono calcolare i metri percorsi infrangendo i limiti di velocità
+    '''
     punti = viaggio.get_punti()
     npunti = len(punti)
     i = 0
     km_up = 0
+    speedingPointsCount = 0
     lastperc = 0                                                                                                #
     while i<npunti-1:
         perc = int(float(i+1)/(npunti-1)*100)                                                                   #
@@ -60,21 +74,44 @@ def getSpeedingDistance(viaggio):
             # km tra p1 e p2
             km_up += p2.distance
         elif v1 > lim1 and v2 <= lim2:
-            #print p1,p2,"\n"
-            div = (p2.velocita - p1.velocita)
-            if div == 0: div = 1
-            x = (((lim1 - p1.velocita)*(p2.distance))/div)#+p1["km"]
+            speedingPointsCount = speedingPointsCount + 1
+            x = line_intersection(p1,p2)
             km_up += x
         elif v1 <= lim1 and v2 > lim2:
-            #print p1,p2,"\n"
-            div = (p2.velocita - p1.velocita)
-            if div == 0: div = 1
-            x = (((lim1 - p1.velocita)*(p2.distance))/div)#+p1["km"]
+            speedingPointsCount = speedingPointsCount + 1
+            x = line_intersection(p1,p2)
             km_up += p2.distance - x
-    print ""                                                                                                     #
+    print ""                                                                                                    #
+    print "Punti sopra il limite di velocità: ",speedingPointsCount
     return km_up
 
-def getDistances(viaggio,verbose):
+def line_intersection(p1, p2):
+    s1 = (0,p1.velocita)
+    s2 = (p2.distance,p2.velocita)
+    l1 = (0,p1.maxspeed)
+    l2 = (p2.distance,p2.maxspeed)
+    xdiff = (s1[0]-s2[0],l1[0]-l2[0])
+    ydiff = (s1[1]-s2[1],l1[1]-l2[1])
+
+    def det(a, b):
+        return a[0] * b[1] - a[1] * b[0]
+
+    div = det(xdiff, ydiff)
+    if div == 0:
+       raise Exception('lines do not intersect')
+
+    d = (det(s1,s2), det(l1,l2))
+    x = round(float(det(d, xdiff)) / div, 2)
+    return x
+
+def getDistances(viaggio):
+    '''
+    Recupera la distanza tra i punti che compongono il viaggio dalla API osrm.
+
+    :type viaggio: viaggio
+    :param viaggio: Il viaggio del quale si vogliono calcolare le distanze tra punti
+    '''
+    osrm.RequestConfig.host = "localhost:5000"
     blocksize = 99
     distances = [0]
     steps = []
@@ -94,13 +131,10 @@ def getDistances(viaggio,verbose):
         lastperc = perc                                                                                         #
         if k==0:
             block = coords[k*blocksize:(k+1)*blocksize]
-            #print "Indici blocco:",k*blocksize,(k+1)*blocksize-1,"dim blocco =",len(block)
         elif k <nblocks:
             block = coords[k*blocksize-1:(k+1)*blocksize]
-            #print "Indici blocco:",k*blocksize-1,(k+1)*blocksize-1,"dim blocco =",len(block)
         elif k==nblocks:
             block = coords[k*blocksize-1:]
-            #print "Indici blocco:",k*blocksize-1,len(coords)-1,"dim blocco =",len(block)
         
         if len(block)>1:
             result = osrm.match(block)
@@ -111,8 +145,6 @@ def getDistances(viaggio,verbose):
             tempTraces = result["tracepoints"]
             tempTraces.pop(0) #RIMUOVE LA PRIMA TRACCIA POICHE' SI RIFERISCE A UNA DISTANZA GIA' CONTATA
             tracepoints.extend(tempTraces)
-        # else:
-        #     print "Sono in un ramo dove non dovrei mai entrare"
             
         k = k+1
     print ""                                                                                                     #
@@ -124,32 +156,44 @@ def getDistances(viaggio,verbose):
             if len(steps)>0:
                 distances.append(steps.pop(0)["distance"])
             else:
+                print "Distanza = -5"
                 distances.append(-5)
 
-    if verbose: print "Lunghezza array distanze:",str(len(distances))
     return totalDistance,distances
 
-def getMaxSpeeds(viaggio,verbose):
+def getMaxSpeeds(viaggio):
+    '''
+    Per ogni punto che compone il viaggio, recupera dalla API overpass la velocità massima vigente.
+
+    :type viaggio: viaggio
+    :param viaggio: Il viaggio del quale si vogliono recuperare le velocità massime vigenti sui vari punti 
+    '''
     coords = viaggio.getCoords()
     maxspeeds = []
     ncoords = len(coords)
     i=0
-    lastperc = 0                                                #
+    lastperc = 0                                                                                                  #
     while i<ncoords:
-        perc = int(float(i+1)/(ncoords)*100)                    #
-        if lastperc!=perc:                                      #
-            print "Ottengo velocità massime:",perc,"%\r",       #
-            sys.stdout.flush()                                  #
-        tmp = getMaxspeed(coords[i],verbose)
+        perc = int(float(i+1)/(ncoords)*100)                                                                      #
+        if lastperc!=perc:                                                                                        #
+            print "Ottengo velocità massime:",perc,"%\r",                                                         #
+            sys.stdout.flush()                                                                                    #
+        tmp = getMaxspeed(coords[i])
         maxspeeds.append(tmp)
         i = i + 1
-        lastperc = perc                                         #
-    print ""                                                    #
+        lastperc = perc                                                                                           #
+    print ""                                                                                                      #
     #print "Lunghezza array velocità:",str(len(maxspeeds))
     maxspeeds = fixSpeeds(maxspeeds)
     return maxspeeds
 
-def getMaxspeed(coord,verbose):
+def getMaxspeed(coord):
+    '''
+    Recupera dalla API overpass la velocità massima vigente in un determinato punto, a partire dalle sue coordinate.
+
+    :type coord: string
+    :param coord: le coordinate del punto del quale si vuole scoprire la velocità massima vigente. Le coordinate sono in formato striga "latitudine,longitudine"
+    '''
     api = overpass.API(endpoint="http://localhost/api/interpreter")
     query = '(around:10,%s)' % (coord)
     way_query = overpass.WayQuery(query)
@@ -172,21 +216,16 @@ def getMaxspeed(coord,verbose):
                 
     #se l'array roads non contiene nessuna strada allora non è stata trovata nessuna strada
     if len(roads)==0:
-        if verbose: print "Strada non trovata"
         return -2        
     
-    #se più di una strada passa il filtraggio, bisogna tenere la più significativa 
+    #se più di una strada passa il filtraggio, allora provo a filtrarle eliminando quelle non hanno il tag "maxspeed"
     if len(roads)>1:
         mask = []
         for road in roads:
             if "maxspeed" in road: mask.append(road)
-        #if len(mask)>1 : print "PIU' DI UNA STRADA SOPRAAVVISSUTA AL FILTRAGGIO"#, results
-        roads = mask        
-    
+        if len(mask)>0: roads = mask                
     
     if len(roads)>0:
-        #a questo punto dovrebbe esserci solo un elento all'interno dell'array
-        road = roads[0]
         roadmaxspeeds = []
         for road in roads:
             maxspeed = 0
@@ -195,12 +234,12 @@ def getMaxspeed(coord,verbose):
             if "maxspeed" in road:
                 maxspeed = int(road["maxspeed"])
         
-            #se il tipo di "highway" è "residential" o "motorway" allora non serve differenziare tra strada urbana o interurbana
+            #se il tipo di "highway" è "residential", "trunk" o "motorway" allora non serve differenziare tra strada urbana o interurbana
             if maxspeed==0:
                 if "residential" in road["highway"]:
                     maxspeed = 50
                 if "trunk" in road["highway"]:
-                    maxspeed = 90
+                    maxspeed = 90   
                 if "motorway" in road["highway"]:
                     maxspeed = 130
             
@@ -224,10 +263,16 @@ def getMaxspeed(coord,verbose):
         return max(roadmaxspeeds)
     
     else:
-        if verbose: print "Velocità massima non trovata."
-        return -1
+        return -1 #velocità massima non trovata
 
 def fixSpeeds(speeds):
+    '''
+    Assegna una velocità massima ai punti dei quali non si è riuscito a recuperare la velocità massima.
+    La velocità assegnata al singolo punto dipende dai punti adiacenti.
+
+    :type speeds: int[]
+    :param speeds: il vettore che contiene le velocità dell'intero viaggio
+    '''
     npunti = len(speeds)
     if speeds[0]<0:
         i = 1
@@ -248,13 +293,6 @@ def fixSpeeds(speeds):
             if i==npunti-1: speeds[i] = speeds[i-1] 
         i = i+1
     return speeds
-    
-def toOsrmFormat(strCoord):
-    coord = strCoord.split(",")
-    return (float(coord[1]),float(coord[0]))
-
-def get_indici(viaggio):
-    pass
 
 def print_viaggi(viaggi):
     i=0
