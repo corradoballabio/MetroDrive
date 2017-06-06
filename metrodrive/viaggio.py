@@ -80,12 +80,7 @@ class Viaggio:
         return swappedCoords
 
     def removeClosePoints(self):
-    	print "Punti prima di removeClosePoints", len(self.punti)
     	i = 1
     	while i<len(self.punti):
     		if self.punti[i].distance <= 0: self.punti.remove(self.punti[i])
     		i = i +1
-    	print "Punti dopo di removeClosePoints", len(self.punti)
-
-    #def numPunti(self):
-        #return len(self.punti)
