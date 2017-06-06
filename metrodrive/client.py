@@ -6,21 +6,37 @@ import collector
 import httplib2
 from cryptography.fernet import Fernet
 
-urlbase = "http://127.0.0.1:5000/metrodrive/api/v0.1/"
+urlbase = "http://0.0.0.0:5000/metrodrive/api/v0.1/"
 time_window = 2 #minute
 
 class Client:
-    def __init__(self, i , fic, fiv):
-        ( self.device_id, self.shared_pwd ) = self.set_device_credentials(i, fic)
-        self.file_input = fiv #txt con viaggi in input
-        self.lista_viaggi = collector.json_txt_to_viaggi(fiv)
+    def __init__(self, did, pwd, vv):
+        """
+        Rappresenta il client che invia al server i dati grezzi dei viaggi 
+        prelevati dai dongle interni ai veicoli. 
         
-    def set_device_credentials(self, i, fn):
-        f = open(fn, "r")
-        l = f.readlines()[i+1].split("\t")
-        return (l[0], l[1].rstrip())
+        :type did: string
+        :param did: identificativo del dispositivo 
+        :type pwd: string
+        :param pwd: password simmetrica condivisa tra dispositivo e server
+        :type vv: Viaggio[]
+        :param vv: lista di viaggi associati al dispositivo
+        
+        """
+        self.device_id = did
+        self.shared_pwd = pwd
+        self.lista_viaggi = vv
         
     def packets_from_viaggio(self, v):
+        """
+        Estrae i punti di un oggetto Viaggio, li divide per finestre temporali di lunghezza time_window e
+        crea delle liste di punti in formato json rappresentanti i pacchetti di invio del Client.
+        
+        :type v: Viaggio
+        :param v: Viaggio in input
+        :rtype: lista di dizionari json
+        :return: lista dei pacchetti di invio contenente i punti del viaggio di input
+        """
         
         packets_point = []
         
@@ -28,7 +44,8 @@ class Client:
         vtstart = v.get_start_data()
         vpunti = v.get_punti()
 
-        ptend = vtstart + datetime.timedelta(0,0,0,0,2) #aggiungi 2 minuti
+        # partiziono i punti secondo finestre temporali di lunghezza time_window minuti
+        ptend = vtstart + datetime.timedelta(0,0,0,0,time_window)
         new_packet = [] 
         
         for p in vpunti:
@@ -40,14 +57,15 @@ class Client:
             else:
                 if len(new_packet) > 0:
                     packets_point.append(new_packet)
-                ptend = ptend + datetime.timedelta(0,0,0,0,2)
+                ptend = ptend + datetime.timedelta(0,0,0,0,time_window)
                 new_packet = []
                 new_packet.append(p)
         if len(new_packet) > 0:
             packets_point.append(new_packet)
            
         packets_json = []
-             
+        
+        # converto le liste di punti in formato json
         for pp in packets_point:
             
             pjson_punti = []
@@ -69,9 +87,16 @@ class Client:
             
           
     def send_data_viaggio(self, v):
+        """
+        Invia in sicurezza al Server i dati grezzi contenuti in un viaggio in input.
+            
+        :type v: Viaggio
+        :param v: viaggio rappresentante l'insieme di punti da inviare al Server    
+        """
         
-        print v.id_, len(v.punti)
-        vpackets = self.packets_from_viaggio(v) #estrai pacchetti viaggio come stringhe
+        #estrai pacchetti dal viaggio come stringhe di dizionari
+        #print v.id_, len(v.punti)
+        vpackets = self.packets_from_viaggio(v) 
         np = len(vpackets)
         
         http = httplib2.Http()
@@ -81,50 +106,45 @@ class Client:
         chiper_suite = Fernet(self.shared_pwd)
         auth_data = { "device_id" : self.device_id, "signature" : chiper_suite.encrypt(self.device_id)}
         response, content = http.request(urlbase + "login", 'POST', json.dumps(auth_data), headers=headers)
+        if response['status'] != '200': print "Login error " + str(response) + str(content)
+        else: "Dispositivo %s connesso. Inizio invio viaggio %s.\n" % (self.device_id, v.id_)
         
         #invia dati
         headers['Cookie'] = response["set-cookie"]
         headers['Content-Type'] = "application/text"
-        while len(vpackets) > 0:
+        for pi in range(len(vpackets)):
             
-            jdata = json.dumps(vpackets.pop(0)) #creo json data
+            jdata = json.dumps(vpackets[pi]) #creo json data
             data = chiper_suite.encrypt(jdata) #cifro json data
 
             response, content = http.request(urlbase + "data", 'POST', data, headers=headers) 
             if response['status'] != '200': print "Error " + str(response) + str(content)
+            else: print "Inviato pacchetto %s di %s" % (pi, len(vpackets))
             if "set-cookie" in response: headers['Cookie'] = response["set-cookie"]
             
             time.sleep(1)
             
         #effettua logout
         response, content = http.request(urlbase + "logout", 'GET', headers=headers)
-           
-        print v.id_, ": " + str(np) + " pacchetti inviati."   
-        
-    def send_data_next_viaggio(self):
-        
-        if len(self.lista_viaggi) > 0:
-            
-            v = self.lista_viaggi.pop(0) #estrai viaggio da inviare
-            
-            self.send_data_viaggio(v) 
+        if response['status'] != '200': print "Logout error " + str(response) + str(content)
+        else: "Dispositivo %s disconnesso. Invio viaggio %s terminato.\n" % (self.device_id, v.id_) 
 
                 
-def main1():
-    txt_files = glob.glob("input/*.txt")
-    pwd_file = "keys"
+def main1(i_user, i_txt):
     
-    for txt_filename in txt_files:
+    pwd_file = "keys"
+    f_pwd = open(pwd_file, "r")
+    l = f_pwd.readlines()[i_user+1].split("\t")
+    
+    txt_files = glob.glob("input/*.txt")
+    txt_filename = txt_files[i_txt]
+    viaggi = collector.json_txt_to_viaggi(txt_filename)
+    
+    myclient = Client(l[0], l[1], viaggi)
+    
+    for v in myclient.lista_viaggi:
+        myclient.send_data_viaggio(v)
+        time.sleep(1)
+    
         
-        txt_filename = txt_files[2] #debug
-        
-        myclient = Client(1, pwd_file, txt_filename)
-        print len(myclient.lista_viaggi)
-        
-        for v in myclient.lista_viaggi:
-            myclient.send_data_viaggio(v)
-            time.sleep(0)
-            
-        break
-        
-main1()
+main1(1,2)

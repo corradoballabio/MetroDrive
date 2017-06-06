@@ -9,12 +9,6 @@ from cryptography.fernet import Fernet
 #export FLASK_DEBUG=1
 #flask run
 
-#TODOS:
-# - prendere solo viaggi italia
-# - mettere nelle sessioni id_device e id_viaggio
-# - salvare in modo univoco id viaggio
-# - aggiungere flag ricezione e processing
-
 app = Flask(__name__)
 mongo_client = MongoClient('localhost', 27017)
 db = mongo_client.metrodrive
@@ -22,7 +16,11 @@ viaggi = db.viaggi
 devices = db.devices
 
 def setup_db():
-    viaggi.delete_many({}) #svuota db
+    """
+    Esegue setup del database Mongo: svuota dati preesistenti e inizializza db.devices con
+    i dati contenuti nel file "keys".
+    """
+    viaggi.delete_many({}) 
     devices.delete_many({})
     f = open("keys", "r")
     for l in f.readlines()[1:]:
@@ -31,16 +29,32 @@ def setup_db():
         devices.insert_one({"device_id":device_id,"shared_key":shared_pwd})
         
 def decode(did, payload):
+    """
+    Decodifica del payload per chiave di cifratura simmetrica condivisa con il client.
+    
+    :type payload: string
+    :param payload: stringa rappresentante i pacchetti cifrati ricevuti dal server
+    :rtype: string o None
+    :return: il payload decifrato in caso di successo, None in caso contrario
+    """
     post = devices.find_one({"device_id": did})
     if post is not None:
         shared_key = post["shared_key"].encode('utf-8')
         cipher_suite = Fernet(shared_key)
         message = cipher_suite.decrypt(bytes(payload))
         return message
-    return -1
+    return None
         
-@app.route("/metrodrive/api/v0.1/login", methods=["POST"]) #mettere_username_nell'url
+@app.route("/metrodrive/api/v0.1/login", methods=["POST"]) 
 def login():
+    """
+    Effettua login sicuro del Client e inizializza sessione di connessione.
+    
+    :<json string device_id: id del device Client
+    :<json string signature: firma digitale, ottenuta tramite cifratura dell'id del device con chiave simmetrica
+    :status 200: login effettuato
+    :status 401: login fallito
+    """
     jreq = request.json
     device_id = jreq["device_id"]
     post = devices.find_one({"device_id": device_id})
@@ -56,21 +70,43 @@ def login():
     
 @app.route("/metrodrive/api/v0.1/logout", methods=["GET"])
 def logout():
+    """
+    Effettua logout sicuro del Client e termina sessione di connessione.
+    
+    :status 200: logout effettuato.
+    :status 401: logout fallito.
+    """
     if 'viaggio_id' not in session:
         "Logout error: device not logged.", 401
     device_id = session['device_id']
     session.pop('device_id', None)
+    viaggio_id = session['viaggio_id']
+    post = viaggi.find_one({"_id": ObjectId(viaggio_id)})
+    post["ricevuto"] = True
+    viaggi.save(post)
     session.pop('viaggio_id', None)
     print  device_id + " logged out."
     return "OK", 200
 
 @app.route("/metrodrive/api/v0.1/data", methods=['POST'])
-def api_send_data():
-    print len(session.keys())
+def send_data():
+    """
+    Riceve dati inviati in modo sicuro dal client relativi ad un viaggio e aggiunge al database.
     
+    :reqheader Accept: application/json
+    :<json string tempo_inizio: timestamp di inizio del viaggio inviato
+    :<json list punti: array di punti in formato json
+    
+    :reqheader Accept: application/text
+    :<text string data: json cifrato con chiave simmetrica, contenente i punti del viaggio inviti
+    
+    :status 200: ricezione e archiviazione eseguite con successo.
+    :status 401: dispositivo non autenticato.
+    :status 415: dati di invio non supportati.
+    """
     if 'device_id' not in session:
         return "Device not logged.", 401 
-        
+    
     #invia json come testo cifrato 
     if request.headers['Content-Type'] == "application/text":
         
@@ -129,4 +165,4 @@ def hello_world():
 if __name__ == '__main__':
     setup_db()
     app.secret_key = os.urandom(24)
-    app.run(host='127.0.0.1', port=5000, debug = True)
+    app.run(host='0.0.0.0', port=5000, debug = True)
