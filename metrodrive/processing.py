@@ -7,25 +7,35 @@ import osrm
 from viaggio import Viaggio
 from punto import Punto
 
-def main():
-    from collector import json_txt_to_viaggi
-    #"input/2015075.txt", problematico, l'ultimo pacchetto di distanze arriva con dei None mancanti
-    viaggi = json_txt_to_viaggi("input/2131428.txt")
-    i = 0
-    for viaggio in viaggi:
-        #print "Viaggio",i,"composto da",len(viaggio.punti),"punti."
-        i = i + 1
+def readViagggiTxt(stringPath,summary):
+    '''
+    Legge un file txt rappresentate un gruppo di viaggi. Può essere usato 
 
-    viaggio = viaggi[21]
-    #viaggio.punti = viaggio.punti[:40]
-    distTot, speedingDistance = analyze(viaggio)
+    :type viaggio: Viaggio
+    :param viaggio: L'oggetto Viaggio del quale si vogliono calcolare gli indici
+    '''
+    from collector import json_txt_to_viaggi
+    from os.path import exists
+    if exists(stringPath):
+        try:
+            viaggi = json_txt_to_viaggi(stringPath)
+            if summary: print "Sommario del file",stringPath
+            i = 0
+            for viaggio in viaggi:
+                if summary: print "Viaggio",i,"composto da",len(viaggio.punti),"punti."
+                i = i + 1
+            return viaggi
+        except IndexError:
+            print "Il file in input non è nel formato previsto."
+    else:
+        print stringpath,"is not a valid path."
 
 def analyze(viaggio):
     '''
     Calcola gli indici di un viaggio.
 
-    :type viaggio: viaggio
-    :param viaggio: L'oggetto viaggio del quale si vogliono calcolare gli indici
+    :type viaggio: Viaggio
+    :param viaggio: L'oggetto Viaggio del quale si vogliono calcolare gli indici
     '''
     print "Viaggio composto da",len(viaggio.punti),"punti."
     
@@ -46,8 +56,8 @@ def getSpeedingDistance(viaggio):
     '''
     Usa il metodo dell'interpolazione lineare per calcolare quanti metri sopra i limiti di velocità sono stati percorsi durante il viaggio.
 
-    :type viaggio: viaggio
-    :param viaggio: L'oggetto viaggio del quale si vogliono calcolare i metri percorsi infrangendo i limiti di velocità
+    :type viaggio: Viaggio
+    :param viaggio: L'oggetto Viaggio del quale si vogliono calcolare i metri percorsi infrangendo i limiti di velocità
     '''
     punti = viaggio.get_punti()
     npunti = len(punti)
@@ -75,17 +85,27 @@ def getSpeedingDistance(viaggio):
             km_up += p2.distance
         elif v1 > lim1 and v2 <= lim2:
             speedingPointsCount = speedingPointsCount + 1
-            x = line_intersection(p1,p2)
+            x = lineIntersection(p1,p2)
             km_up += x
         elif v1 <= lim1 and v2 > lim2:
             speedingPointsCount = speedingPointsCount + 1
-            x = line_intersection(p1,p2)
+            x = lineIntersection(p1,p2)
             km_up += p2.distance - x
     print ""                                                                                                    #
     print "Punti sopra il limite di velocità: ",speedingPointsCount
-    return km_up
+    return int(km_up)
 
-def line_intersection(p1, p2):
+def lineIntersection(p1, p2):
+    '''
+    A partire da 2 punti crea due rette, una che rappresenta l'andamento della velocità effettiva e una che rappresenta l'andamento della velocità massima.
+    Trovando il punto di incontro delle rette, è possibile calcolare quando spazio è stato percorso violando i limiti di velocità.
+
+    :type p1: Punto
+    :param p1: il primo Punto
+
+    :type p2: Punto
+    :param p2: il secondo Punto
+    '''
     s1 = (0,p1.velocita)
     s2 = (p2.distance,p2.velocita)
     l1 = (0,p1.maxspeed)
@@ -108,8 +128,8 @@ def getDistances(viaggio):
     '''
     Recupera la distanza tra i punti che compongono il viaggio dalla API osrm.
 
-    :type viaggio: viaggio
-    :param viaggio: Il viaggio del quale si vogliono calcolare le distanze tra punti
+    :type viaggio: Viaggio
+    :param viaggio: Il Viaggio del quale si vogliono calcolare le distanze tra punti
     '''
     osrm.RequestConfig.host = "localhost:5000"
     blocksize = 99
@@ -156,7 +176,6 @@ def getDistances(viaggio):
             if len(steps)>0:
                 distances.append(steps.pop(0)["distance"])
             else:
-                print "Distanza = -5"
                 distances.append(-5)
 
     return totalDistance,distances
@@ -165,8 +184,8 @@ def getMaxSpeeds(viaggio):
     '''
     Per ogni punto che compone il viaggio, recupera dalla API overpass la velocità massima vigente.
 
-    :type viaggio: viaggio
-    :param viaggio: Il viaggio del quale si vogliono recuperare le velocità massime vigenti sui vari punti 
+    :type viaggio: Viaggio
+    :param viaggio: Il Viaggio del quale si vogliono recuperare le velocità massime vigenti sui vari punti 
     '''
     coords = viaggio.getCoords()
     maxspeeds = []
@@ -294,11 +313,26 @@ def fixSpeeds(speeds):
         i = i+1
     return speeds
 
-def print_viaggi(viaggi):
-    i=0
-    for viaggio in viaggi:
-        print i,"\n",viaggio,"\n"
-        i = i+1
-
 if __name__ == '__main__':
-    main()  
+    nargs = len(sys.argv)
+    if nargs == 1:
+        print "Per visualizzare i dettagli di un file txt di viaggio, digitare \"processing.py path/viaggio.txt\""
+        print "Per analizzare un viaggio, digitare \"processing.py path/viaggio.txt indice_viaggio\""
+        print "Per lanciare una demo, digita \"yes\""
+        sys.stdout.flush()
+        userchoice = raw_input()
+        if userchoice == "yes" or userchoice == "Yes":
+            viaggi = readViagggiTxt("input/2131428.txt",False)
+            analyze(viaggi[2])
+        else:
+            print "Bye!"
+    elif nargs == 2:
+        readViagggiTxt(sys.argv[1],True)
+        print "Per analizzare un viaggio, digitare \"processing.py path/viaggio.txt indice_viaggio\""
+    elif nargs == 3:
+        viaggi = readViagggiTxt(sys.argv[1],False)
+        analyze(viaggi[int(sys.argv[2])])
+    else:
+        print "Troppi paramentri"
+        print "Usage: Per visualizzare i dettagli di un file txt di viaggio, digitare \"processing.py path/viaggio.txt\""
+        print "Per analizzare un viaggio, digitare \"processing.py path/viaggio.txt indice_viaggio\""
