@@ -6,7 +6,7 @@ import collector
 import httplib2
 from cryptography.fernet import Fernet
 
-urlbase = "http://0.0.0.0:5000/metrodrive/api/v0.1/"
+urlbase = "http://10.255.5.70:5000/metrodrive/api/v0.1/"
 time_window = 2 #minute
 
 class Client:
@@ -107,7 +107,7 @@ class Client:
         auth_data = { "device_id" : self.device_id, "signature" : chiper_suite.encrypt(self.device_id)}
         response, content = http.request(urlbase + "login", 'POST', json.dumps(auth_data), headers=headers)
         if response['status'] != '200': print "Login error " + str(response) + str(content)
-        else: "Dispositivo %s connesso. Inizio invio viaggio %s.\n" % (self.device_id, v.id_)
+        else: print "Dispositivo %s connesso. Inizio invio viaggio %s.\n" % (self.device_id, v.id_)
         
         #invia dati
         headers['Cookie'] = response["set-cookie"]
@@ -127,7 +127,7 @@ class Client:
         #effettua logout
         response, content = http.request(urlbase + "logout", 'GET', headers=headers)
         if response['status'] != '200': print "Logout error " + str(response) + str(content)
-        else: "Dispositivo %s disconnesso. Invio viaggio %s terminato.\n" % (self.device_id, v.id_) 
+        else: print "Dispositivo %s disconnesso. Invio viaggio %s terminato.\n" % (self.device_id, v.id_) 
 
                 
 def main1(i_user, i_txt):
@@ -147,4 +147,4 @@ def main1(i_user, i_txt):
         time.sleep(1)
     
         
-main1(1,2)
+main1(3,4)
