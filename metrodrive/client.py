@@ -6,7 +6,7 @@ import collector
 import httplib2
 from cryptography.fernet import Fernet
 
-urlbase = "http://10.255.5.70:5000/metrodrive/api/v0.1/"
+urlbase = "http://192.168.0.101:5000/metrodrive/api/v0.1/"
 time_window = 2 #minute
 
 class Client:
@@ -119,7 +119,7 @@ class Client:
 
             response, content = http.request(urlbase + "data", 'POST', data, headers=headers) 
             if response['status'] != '200': print "Error " + str(response) + str(content)
-            else: print "Inviato pacchetto %s di %s" % (pi, len(vpackets))
+            else: print "Inviato pacchetto %s di %s" % (pi+1, len(vpackets))
             if "set-cookie" in response: headers['Cookie'] = response["set-cookie"]
             
             time.sleep(1)
@@ -139,6 +139,7 @@ def main1(i_user, i_txt):
     txt_files = glob.glob("input/*.txt")
     txt_filename = txt_files[i_txt]
     viaggi = collector.json_txt_to_viaggi(txt_filename)
+
     
     myclient = Client(l[0], l[1], viaggi)
     
