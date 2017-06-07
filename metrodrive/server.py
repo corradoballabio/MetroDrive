@@ -2,8 +2,8 @@ from flask import Flask, request, session, json
 from pymongo import MongoClient
 from bson import ObjectId
 import pprint, os
-from OpenSSL import SSL
 from cryptography.fernet import Fernet
+from datetime import datetime
 
 #export FLASK_APP=hello.py
 #export FLASK_DEBUG=1
@@ -14,6 +14,14 @@ mongo_client = MongoClient('localhost', 27017)
 db = mongo_client.metrodrive
 viaggi = db.viaggi
 devices = db.devices
+
+
+def fromepoch(date_str):
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    dt = datetime.strptime(date_str,fmt)
+    epoch = datetime.utcfromtimestamp(0)
+    return (dt - epoch).total_seconds()
+
 
 def setup_db():
     """
@@ -82,7 +90,7 @@ def logout():
     session.pop('device_id', None)
     viaggio_id = session['viaggio_id']
     post = viaggi.find_one({"_id": ObjectId(viaggio_id)})
-    post["ricevuto"] = True
+    post["ricevuto"] = "YES"
     viaggi.save(post)
     session.pop('viaggio_id', None)
     print  device_id + " logged out."
@@ -116,8 +124,8 @@ def send_data():
         if 'viaggio_id' not in session:
             
             #crea nuovo post
-            jviaggio = {"device_id": session["device_id"], "ricevuto": False, "processato": False,
-                         "tempo_inizio" : jdata["tempo_inizio"], "punti" : jdata["punti"] }
+            jviaggio = {"device_id": session["device_id"], "ricevuto": "NO", "processato": "NO",
+                         "tempo_inizio" : fromepoch(jdata["tempo_inizio"]), "punti" : jdata["punti"] }
                          
             viaggio_id = viaggi.insert_one(jviaggio).inserted_id
             session["viaggio_id"] = str(viaggio_id)
@@ -140,8 +148,8 @@ def send_data():
         if 'viaggio_id' not in session:
             
             #crea nuovo post
-            jviaggio = {"device_id": session["device_id"], "ricevuto": False, "processato": False,
-                         "tempo_inizio" : jdata["tempo_inizio"], "punti" : jdata["punti"] }
+            jviaggio = {"device_id": session["device_id"], "ricevuto": "NO", "processato": "NO",
+                         "tempo_inizio" : fromepoch(jdata["tempo_inizio"]), "punti" : jdata["punti"] }
                          
             viaggio_id = viaggi.insert_one(jviaggio).inserted_id
             session["viaggio_id"] = str(viaggio_id)
