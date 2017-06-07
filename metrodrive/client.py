@@ -6,7 +6,7 @@ import collector
 import httplib2
 from cryptography.fernet import Fernet
 
-urlbase = "http://10.255.5.70:5000/metrodrive/api/v0.1/"
+urlbase = "http://192.168.0.101:5000/metrodrive/api/v0.1/"
 time_window = 2 #minute
 
 class Client:
@@ -130,8 +130,10 @@ class Client:
         else: print "Dispositivo %s disconnesso. Invio viaggio %s terminato.\n" % (self.device_id, v.id_) 
 
                 
-def main1(i_user, i_txt):
-    
+def main1():
+    from random import randint
+    i_user = randint(0,100)
+    i_txt = randint(0,23)
     pwd_file = "keys"
     f_pwd = open(pwd_file, "r")
     l = f_pwd.readlines()[i_user+1].split("\t")
@@ -147,4 +149,4 @@ def main1(i_user, i_txt):
         time.sleep(1)
     
         
-main1(3,4)
+main1()

@@ -50,7 +50,7 @@ def analyze(viaggio):
     print "Distanza totale:",int(distTot),"m"
     print "Distanza sopra i limiti:",speedingDistance,"m"
 
-    return distTot, speedingDistance
+    return distTot, speedingDistance, viaggio
 
 def getSpeedingDistance(viaggio):
     '''
