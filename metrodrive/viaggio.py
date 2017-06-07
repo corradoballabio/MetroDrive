@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
+from punto import Punto
 
 class Viaggio:
     def __init__(self, id_, tstart, tend, punti_list):
@@ -7,6 +8,21 @@ class Viaggio:
         self.tempo_inizio = tstart
         self.tempo_fine = tend
         self.punti = punti_list
+    
+    def __init__(self):
+        self.id_ = ""
+        self.tempo_inizio = ""
+        self.tempo_fine = ""
+        self.punti = []
+
+    def fromJSON(self,json):
+    	self.id_ = json["_id"]
+        self.tempo_inizio = json["tempo_inizio"]
+        self.tempo_fine = "0"
+        for punto in json["punti"]:
+        	p = Punto()
+        	p.fromJSON(punto)
+        	self.punti.append(p)
     
     def toJSON(self):
     	idp = "\"id\" : \""+str(self.id_)+"\""

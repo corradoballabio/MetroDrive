@@ -157,6 +157,7 @@ def getDistances(viaggio):
             block = coords[k*blocksize-1:]
         
         if len(block)>1:
+            print block
             result = osrm.match(block)
             totalDistance = totalDistance + (result["matchings"][0]["distance"])
             
@@ -323,7 +324,13 @@ if __name__ == '__main__':
         userchoice = raw_input()
         if userchoice == "yes" or userchoice == "Yes":
             viaggi = readViagggiTxt("input/2131428.txt",False)
-            analyze(viaggi[2])
+            viaggio = viaggi[2]
+            viaggio.punti = viaggio.punti[:10]
+            try:
+                analyze(viaggio)
+            except urllib2.HTTPError as e:
+                err = e.read()
+                print err
         else:
             print "Bye!"
     elif nargs == 2:

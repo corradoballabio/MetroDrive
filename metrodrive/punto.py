@@ -9,6 +9,20 @@ class Punto:
         self.maxspeed = -3
         self.distance = -3
 
+    def __init__(self):
+        self.timestamp = "0"
+        self.latitudine = ""
+        self.longitudine = ""
+        self.velocita = ""
+        self.maxspeed = -3
+        self.distance = -3
+
+    def fromJSON(self,json):
+        self.timestamp = json["timestamp"]
+        self.latitudine = json["latitudine"]
+        self.longitudine = json["longitudine"]
+        self.velocita = json["velocita"]
+
     def toJSON(self):
         timestamp = "\"timestamp\" : \""+str(self.timestamp)+"\""
         lat = "\"lat\" : \""+str(self.latitudine)+"\""
