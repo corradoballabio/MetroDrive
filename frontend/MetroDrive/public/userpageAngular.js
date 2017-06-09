@@ -106,7 +106,7 @@ app.filter('percentage', function() {
 app.filter('distance', function() {
 	return function (number) {
 		if (/^-?[\d.]+(?:e-?\d+)?$/.test(number)) {
-			return number + 'km';
+			return Number((number/1000).toFixed(2)) + 'km';
 		}
 		return number;
 	}
