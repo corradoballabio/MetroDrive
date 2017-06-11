@@ -1,0 +1,14 @@
+{
+  "name"         : "MetroDrive",
+  "version"      : "0.0.0",
+  "main"         : "server.js",
+  "author"       : "VLCB",
+  "dependencies" : {
+    "express"    : "~4.15.2",
+    "mysql"      : "^2.10.2",
+    "morgan"     : "~1.8.1",
+    "body-parser": "~1.5.2",
+    "method-override": "~2.1.2"
+    }
+}
+

@@ -1,0 +1,45 @@
+<!doctype html>
+
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>MetroDrive</title>
+
+    <link href="./stylesheets/style.css" rel="stylesheet" type="text/css"/>
+    <style>
+        html                    { overflow-y:scroll; }
+        body                    { padding-top:50px; }
+    </style>
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script><!-- SERVE??? -->
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
+    <script src="core.js"></script>
+
+</head>
+<body ng-app="login" ng-controller="MainController">
+    <h1> MetroDrive - Login </h1>
+    <div>
+        <h2> Inserisci nome utente e password </h2>
+        {{ utente.username }}
+        {{ utente.result }}
+        "name singleton: " {{ ooo }}
+    </div>
+    <div>
+      <form name="formLogin">
+        <div class="block">
+          <label>Nome utente: </label>
+          <input type="text" placeholder="Username" name="nomeUtente" autocomplete='off' ng-model="utente.username"/>
+        </div>
+        <div class="block">
+          <label>Password: </label>
+          <input type="password" placeholder="Password" name="password" ng-model = "utente.password"/>
+        </div>
+        <div class="block">
+          <button class="btn btn-success"  ng-click="validate()">Login</button>
+        </div>
+      </form>
+    </div>
+
+</body>
+</html>
+
