@@ -9,18 +9,18 @@ class Viaggio:
         self.tempo_fine = tend
         self.punti = punti_list
     
-    def __init__(self):
-        self.id_ = ""
-        self.tempo_inizio = ""
-        self.tempo_fine = ""
-        self.punti = []
+    # def __init__(self):
+    #     self.id_ = ""
+    #     self.tempo_inizio = ""
+    #     self.tempo_fine = ""
+    #     self.punti = []
 
     def fromJSON(self,json):
     	self.id_ = json["_id"]
         self.tempo_inizio = json["tempo_inizio"]
         self.tempo_fine = "0"
         for punto in json["punti"]:
-        	p = Punto()
+        	p = Punto(0,0,0,0)
         	p.fromJSON(punto)
         	self.punti.append(p)
     

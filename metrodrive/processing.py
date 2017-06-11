@@ -3,11 +3,12 @@ import math
 import sys
 import overpass
 import osrm
+import urllib2
 
 from viaggio import Viaggio
 from punto import Punto
 
-def readViagggiTxt(stringPath,summary):
+def readViaggiTxt(stringPath,summary):
     '''
     Legge un file txt rappresentate un gruppo di viaggi. Può essere usato 
 
@@ -19,16 +20,16 @@ def readViagggiTxt(stringPath,summary):
     if exists(stringPath):
         try:
             viaggi = json_txt_to_viaggi(stringPath)
-            if summary: print "Sommario del file",stringPath
+            if summary: print u"Sommario del file",stringPath
             i = 0
             for viaggio in viaggi:
-                if summary: print "Viaggio",i,"composto da",len(viaggio.punti),"punti."
+                if summary: print u"Viaggio",i,"composto da",len(viaggio.punti),"punti."
                 i = i + 1
             return viaggi
         except IndexError:
-            print "Il file in input non è nel formato previsto."
+            print u"Il file in input non è nel formato previsto."
     else:
-        print stringpath,"is not a valid path."
+        print stringpath,u"is not a valid path."
 
 def analyze(viaggio):
     '''
@@ -37,18 +38,23 @@ def analyze(viaggio):
     :type viaggio: Viaggio
     :param viaggio: L'oggetto Viaggio del quale si vogliono calcolare gli indici
     '''
-    print "Viaggio composto da",len(viaggio.punti),"punti."
+    print u"Viaggio composto da",len(viaggio.punti),"punti."
     
     speeds = getMaxSpeeds(viaggio)
     viaggio.setMaxSpeeds(speeds)
     
-    distTot, distances = getDistances(viaggio)
-    viaggio.setDistances(distances)
-    viaggio.removeClosePoints()
-    speedingDistance = getSpeedingDistance(viaggio)
+    tupla = getDistances(viaggio)
+    if isinstance(tupla, tuple):
+        distTot = tupla[0]
+        distances = tupla[1]
+        viaggio.setDistances(distances)
+        viaggio.removeClosePoints()
+        speedingDistance = getSpeedingDistance(viaggio)
+    else:
+        return -1
 
-    print "Distanza totale:",int(distTot),"m"
-    print "Distanza sopra i limiti:",speedingDistance,"m"
+    print u"Distanza totale:",int(distTot),"m"
+    print u"Distanza sopra i limiti:",speedingDistance,"m"
 
     return distTot, speedingDistance, viaggio
 
@@ -68,7 +74,7 @@ def getSpeedingDistance(viaggio):
     while i<npunti-1:
         perc = int(float(i+1)/(npunti-1)*100)                                                                   #
         if lastperc!=perc:                                                                                      #
-            print "Calcolo distanza sopra i limiti:",perc,"%\r",                                                #
+            print u"Calcolo distanza sopra i limiti:",perc,"%\r",                                                #
             sys.stdout.flush()                                                                                  #
         lastperc = perc                                                                                         #
         p1 = punti[i]
@@ -92,7 +98,7 @@ def getSpeedingDistance(viaggio):
             x = lineIntersection(p1,p2)
             km_up += p2.distance - x
     print ""                                                                                                    #
-    print "Punti sopra il limite di velocità: ",speedingPointsCount
+    print u"Punti sopra il limite di velocità: ",speedingPointsCount
     return int(km_up)
 
 def lineIntersection(p1, p2):
@@ -109,7 +115,7 @@ def lineIntersection(p1, p2):
     s1 = (0,p1.velocita)
     s2 = (p2.distance,p2.velocita)
     l1 = (0,p1.maxspeed)
-    l2 = (p2.distance,p2.maxspeed)
+    l2 = (p2.distance,p1.maxspeed) #
     xdiff = (s1[0]-s2[0],l1[0]-l2[0])
     ydiff = (s1[1]-s2[1],l1[1]-l2[1])
 
@@ -124,6 +130,19 @@ def lineIntersection(p1, p2):
     x = round(float(det(d, xdiff)) / div, 2)
     return x
 
+def chooseBlockSize(viaggio):
+    npunti = len(viaggio.punti)
+    blocksize = 99 #la massima block size
+    if npunti > 99:
+        trovato = False
+        while not trovato:
+            if blocksize > 1:
+                if (npunti-blocksize)%(blocksize+1)>1: return blocksize
+                else: blocksize = blocksize - 1
+            else: raise Error("processing.chooseBlockSize: non ho trovato una blocksize >1")
+    else:
+        return blocksize
+
 def getDistances(viaggio):
     '''
     Recupera la distanza tra i punti che compongono il viaggio dalla API osrm.
@@ -132,8 +151,8 @@ def getDistances(viaggio):
     :param viaggio: Il Viaggio del quale si vogliono calcolare le distanze tra punti
     '''
     osrm.RequestConfig.host = "localhost:5000"
-    blocksize = 99
-    distances = [0]
+    blocksize = chooseBlockSize(viaggio)
+    distances = []
     steps = []
     tracepoints = []
     totalDistance = 0
@@ -146,7 +165,7 @@ def getDistances(viaggio):
         perc = int(float(k+1)/(nblocks+1)*100)                                                                  #
         block = []
         if lastperc!=perc:                                                                                      #
-            print "Ottengo distanze tra i punti:",perc,"%\r",                                                   #
+            print u"Ottengo distanze tra i punti:",perc,"%\r",                                                   #
             sys.stdout.flush()                                                                                  #
         lastperc = perc                                                                                         #
         if k==0:
@@ -157,21 +176,48 @@ def getDistances(viaggio):
             block = coords[k*blocksize-1:]
         
         if len(block)>1:
-            print block
-            result = osrm.match(block)
-            totalDistance = totalDistance + (result["matchings"][0]["distance"])
+            try:
+                result = osrm.match(block)
+                #if k==0: print result
+            except urllib2.HTTPError as e:
+                print e
+                print u"C'è stato un errore durante il matching dei punti"
+                return -1
             
-            tempSteps = result["matchings"][0]["legs"]
+            tempSteps = []
+            nmatchings = len(result["matchings"])
+            i = 0
+            while i<nmatchings:
+                totalDistance = totalDistance + (result["matchings"][i]["distance"])
+                tempSteps.append({"distance" : 0}) #il primo punto di ogni matching ha distanza dal precedente = 0
+                tempSteps.extend(result["matchings"][i]["legs"])
+                i = i + 1
+            print i
+
             steps.extend(tempSteps)
             tempTraces = result["tracepoints"]
-            tempTraces.pop(0) #RIMUOVE LA PRIMA TRACCIA POICHE' SI RIFERISCE A UNA DISTANZA GIA' CONTATA
+
+            nnulltrace = 0
+            for trace in tempTraces:
+                if trace == None: nnulltrace += 1
+
+            print "Lung. blocco",len(block),"== Lung. traces",len(tempTraces),"?",len(block)==len(tempTraces)
+            print "Lung. steps",len(tempSteps),"== Lung. traces",len(tempTraces),"- tracce nulle",nnulltrace,"?",len(tempSteps)==len(tempTraces)-nnulltrace
+
+            if k>0: tempTraces.pop(0) #RIMUOVE LA PRIMA TRACCIA POICHE' SI RIFERISCE A UNA DISTANZA GIA' CONTATA
             tracepoints.extend(tempTraces)
-            
+
+
+
+        else:
+            print u"processing.getDistances: Non dovresti MAI entrare qui, la tua logica è bacata!"    
         k = k+1
     print ""                                                                                                     #
-
+    nsteps = len(steps)
+    nonecount = 0
     for tracepoint in tracepoints:
         if tracepoint == None:
+            nonecount = nonecount + 1
             distances.append(-4)
         else:
             if len(steps)>0:
@@ -179,7 +225,9 @@ def getDistances(viaggio):
             else:
                 distances.append(-5)
 
-    return totalDistance,distances
+    print u"npunti:",len(coords),"\nntracepoints:",len(tracepoints),"\nnnone:",nonecount,"\nnsteps:",nsteps
+    print distances
+    return (totalDistance,distances)
 
 def getMaxSpeeds(viaggio):
     '''
@@ -196,7 +244,7 @@ def getMaxSpeeds(viaggio):
     while i<ncoords:
         perc = int(float(i+1)/(ncoords)*100)                                                                      #
         if lastperc!=perc:                                                                                        #
-            print "Ottengo velocità massime:",perc,"%\r",                                                         #
+            print u"Ottengo velocità massime:",perc,"%\r",                                                         #
             sys.stdout.flush()                                                                                    #
         tmp = getMaxspeed(coords[i])
         maxspeeds.append(tmp)
@@ -272,7 +320,10 @@ def getMaxspeed(coord):
                 type = None
                 if "sidewalk" in road: type="urban"
                 else: type="interurban"
-                maxspeed = speeds[type][road["highway"]]
+                if road["highway"]!="primary" and road["highway"]!="secondary" and road["highway"]!="tertiary" and road["highway"]!="unclassified":
+                    maxspeed = -1
+                else:
+                    maxspeed = speeds[type][road["highway"]]
             
             #se nessuno dei filtraggi precedenti trovasse la velocità massima, segnalo il fallimento della ricerca della velocità massima
             if maxspeed==0:
@@ -317,13 +368,13 @@ def fixSpeeds(speeds):
 if __name__ == '__main__':
     nargs = len(sys.argv)
     if nargs == 1:
-        print "Per visualizzare i dettagli di un file txt di viaggio, digitare \"processing.py path/viaggio.txt\""
-        print "Per analizzare un viaggio, digitare \"processing.py path/viaggio.txt indice_viaggio\""
-        print "Per lanciare una demo, digita \"yes\""
+        print u"Per visualizzare i dettagli di un file txt di viaggio, digitare \"processing.py path/viaggio.txt\""
+        print u"Per analizzare un viaggio, digitare \"processing.py path/viaggio.txt indice_viaggio\""
+        print u"Per lanciare una demo, digita \"yes\""
         sys.stdout.flush()
         userchoice = raw_input()
         if userchoice == "yes" or userchoice == "Yes":
-            viaggi = readViagggiTxt("input/2131428.txt",False)
+            viaggi = readViaggiTxt("input/2131428.txt",False)
             viaggio = viaggi[2]
             viaggio.punti = viaggio.punti[:10]
             try:
@@ -334,12 +385,12 @@ if __name__ == '__main__':
         else:
             print "Bye!"
     elif nargs == 2:
-        readViagggiTxt(sys.argv[1],True)
-        print "Per analizzare un viaggio, digitare \"processing.py path/viaggio.txt indice_viaggio\""
+        readViaggiTxt(sys.argv[1],True)
+        print u"Per analizzare un viaggio, digitare \"processing.py path/viaggio.txt indice_viaggio\""
     elif nargs == 3:
-        viaggi = readViagggiTxt(sys.argv[1],False)
+        viaggi = readViaggiTxt(sys.argv[1],False)
         analyze(viaggi[int(sys.argv[2])])
     else:
-        print "Troppi paramentri"
-        print "Usage: Per visualizzare i dettagli di un file txt di viaggio, digitare \"processing.py path/viaggio.txt\""
-        print "Per analizzare un viaggio, digitare \"processing.py path/viaggio.txt indice_viaggio\""
+        print u"Troppi paramentri"
+        print u"Usage: Per visualizzare i dettagli di un file txt di viaggio, digitare \"processing.py path/viaggio.txt\""
+        print u"Per analizzare un viaggio, digitare \"processing.py path/viaggio.txt indice_viaggio\""
