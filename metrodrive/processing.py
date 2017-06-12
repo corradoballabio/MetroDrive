@@ -70,33 +70,37 @@ def getSpeedingDistance(viaggio):
     i = 0
     km_up = 0
     speedingPointsCount = 0
-    lastperc = 0                                                                                                #
+    lastperc = 0                                                                                                    #
     while i<npunti-1:
-        perc = int(float(i+1)/(npunti-1)*100)                                                                   #
-        if lastperc!=perc:                                                                                      #
-            print u"Calcolo distanza sopra i limiti:",perc,"%\r",                                                #
-            sys.stdout.flush()                                                                                  #
-        lastperc = perc                                                                                         #
-        p1 = punti[i]
-        p2 = punti[i+1]
-        lim1 = p1.maxspeed
-        lim2 = p2.maxspeed
-        v1 = p1.velocita
-        v2 = p2.velocita
-        i = i+1
-        if v1 <= lim1 and v2 <= lim2:
-            continue
-        elif v1 > lim1 and v2 > lim2:
-            # km tra p1 e p2
-            km_up += p2.distance
-        elif v1 > lim1 and v2 <= lim2:
-            speedingPointsCount = speedingPointsCount + 1
-            x = lineIntersection(p1,p2)
-            km_up += x
-        elif v1 <= lim1 and v2 > lim2:
-            speedingPointsCount = speedingPointsCount + 1
-            x = lineIntersection(p1,p2)
-            km_up += p2.distance - x
+        if punti[i].maxspeed>0:
+            perc = int(float(i+1)/(npunti-1)*100)                                                                   #
+            if lastperc!=perc:                                                                                      #
+                print u"Calcolo distanza sopra i limiti:",perc,"%\r",                                               #
+                sys.stdout.flush()                                                                                  #
+            lastperc = perc                                                                                         #
+            p1 = punti[i]
+            p2 = punti[i+1]
+            lim1 = p1.maxspeed
+            #lim2 = p2.maxspeed
+            v1 = p1.velocita
+            v2 = p2.velocita
+            i = i+1
+            if v1 <= lim1 and v2 <= lim1:
+                continue
+            elif v1 > lim1 and v2 > lim1:
+                # km tra p1 e p2
+                km_up += p2.distance
+            elif v1 > lim1 and v2 <= lim1:
+                speedingPointsCount = speedingPointsCount + 1
+                x = lineIntersection(p1,p2)
+                km_up += x
+            elif v1 <= lim1 and v2 > lim1:
+                speedingPointsCount = speedingPointsCount + 1
+                x = lineIntersection(p1,p2)
+                km_up += p2.distance - x
+
+        else:
+            i = i+1
     print ""                                                                                                    #
     print u"Punti sopra il limite di velocità: ",speedingPointsCount
     return int(km_up)
@@ -192,7 +196,6 @@ def getDistances(viaggio):
                 tempSteps.append({"distance" : 0}) #il primo punto di ogni matching ha distanza dal precedente = 0
                 tempSteps.extend(result["matchings"][i]["legs"])
                 i = i + 1
-            print i
 
             steps.extend(tempSteps)
             tempTraces = result["tracepoints"]
@@ -201,8 +204,8 @@ def getDistances(viaggio):
             for trace in tempTraces:
                 if trace == None: nnulltrace += 1
 
-            print "Lung. blocco",len(block),"== Lung. traces",len(tempTraces),"?",len(block)==len(tempTraces)
-            print "Lung. steps",len(tempSteps),"== Lung. traces",len(tempTraces),"- tracce nulle",nnulltrace,"?",len(tempSteps)==len(tempTraces)-nnulltrace
+            #print "Lung. blocco",len(block),"== Lung. traces",len(tempTraces),"?",len(block)==len(tempTraces)
+            #print "Lung. steps",len(tempSteps),"== Lung. traces",len(tempTraces),"- tracce nulle",nnulltrace,"?",len(tempSteps)==len(tempTraces)-nnulltrace
 
             if k>0: tempTraces.pop(0) #RIMUOVE LA PRIMA TRACCIA POICHE' SI RIFERISCE A UNA DISTANZA GIA' CONTATA
             tracepoints.extend(tempTraces)
@@ -225,8 +228,8 @@ def getDistances(viaggio):
             else:
                 distances.append(-5)
 
-    print u"npunti:",len(coords),"\nntracepoints:",len(tracepoints),"\nnnone:",nonecount,"\nnsteps:",nsteps
-    print distances
+    #print u"npunti:",len(coords),"\nntracepoints:",len(tracepoints),"\nnnone:",nonecount,"\nnsteps:",nsteps
+    #print distances
     return (totalDistance,distances)
 
 def getMaxSpeeds(viaggio):
@@ -252,7 +255,7 @@ def getMaxSpeeds(viaggio):
         lastperc = perc                                                                                           #
     print ""                                                                                                      #
     #print "Lunghezza array velocità:",str(len(maxspeeds))
-    maxspeeds = fixSpeeds(maxspeeds)
+    #maxspeeds = fixSpeeds(maxspeeds)
     return maxspeeds
 
 def getMaxspeed(coord):
@@ -284,14 +287,7 @@ def getMaxspeed(coord):
                 
     #se l'array roads non contiene nessuna strada allora non è stata trovata nessuna strada
     if len(roads)==0:
-        return -2        
-    
-    #se più di una strada passa il filtraggio, allora provo a filtrarle eliminando quelle non hanno il tag "maxspeed"
-    if len(roads)>1:
-        mask = []
-        for road in roads:
-            if "maxspeed" in road: mask.append(road)
-        if len(mask)>0: roads = mask                
+        return -2             
     
     if len(roads)>0:
         roadmaxspeeds = []
@@ -299,7 +295,7 @@ def getMaxspeed(coord):
             maxspeed = 0
             
             #se c'è il tag "maxspeed" allora prendo direttamente quel valore
-            if "maxspeed" in road:
+            if "maxspeed" in road and road["maxspeed"].isdigit():
                 maxspeed = int(road["maxspeed"])
         
             #se il tipo di "highway" è "residential", "trunk" o "motorway" allora non serve differenziare tra strada urbana o interurbana

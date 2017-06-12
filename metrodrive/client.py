@@ -6,8 +6,9 @@ import collector
 import httplib2
 from cryptography.fernet import Fernet
 
-urlbase = "http://192.168.0.101:5000/metrodrive/api/v0.1/"
-time_window = 2 #minute
+urlbase = "http://127.0.0.1:5001/metrodrive/api/v0.1/"
+time_window = 5 #minute
+min_time_between_points = 5 #seconds
 
 class Client:
     def __init__(self, did, pwd, vv):
@@ -48,12 +49,15 @@ class Client:
         ptend = vtstart + datetime.timedelta(0,0,0,0,time_window)
         new_packet = [] 
         
+        lastptdate = datetime.datetime.min
         for p in vpunti:
             
             pdate = p.get_date()
             
-            if pdate < ptend: 
-                new_packet.append(p)
+            if pdate < ptend:
+                if (pdate - lastptdate) >= datetime.timedelta(0,min_time_between_points,0,0,0): 
+                    new_packet.append(p)
+                    lastptdate = pdate
             else:
                 if len(new_packet) > 0:
                     packets_point.append(new_packet)
@@ -82,7 +86,7 @@ class Client:
                         "punti": pjson_punti    } 
                         
             packets_json.append(pjson)
-            
+          
         return packets_json
             
           
@@ -132,7 +136,7 @@ class Client:
                 
 def main1():
     from random import randint
-    i_user = randint(0,100)
+    i_user = randint(0,10)
     i_txt = randint(0,23)
     pwd_file = "keys"
     f_pwd = open(pwd_file, "r")

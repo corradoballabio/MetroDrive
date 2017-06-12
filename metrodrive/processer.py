@@ -7,7 +7,7 @@ import datetime
 import json
 from bson.objectid import ObjectId
 
-def analyzeFromTxt():
+def processFromTxt():
 	viaggi = readViaggiTxt("input/badTrip.txt",False)
 	viaggio = viaggi[0]
 	#viaggio.punti = viaggio.punti[:50]
@@ -64,14 +64,14 @@ def setProcessedMongo(viaggio, collection, speedingDistance, distTot):
 		return -1
 
 def getFromMongo(collection):
-	#res = collection.find({"ricevuto" : "YES","processato":"NO"}).sort("tempo_inizio",pymongo.ASCENDING).limit(1)
-	res = collection.find({"_id": ObjectId("593a8e517dbeeb2e305a6d60")})
+	res = collection.find({"ricevuto" : "YES","processato":"NO"}).sort("tempo_inizio",pymongo.ASCENDING).limit(1)
+	#res = collection.find({"_id": ObjectId("593e55797dbeeb0cc808f8e2")})
 	doc = next(res, None)
 	if doc:
 		res = collection.update({"_id" : doc["_id"]}, {"$set":{"processato":"PROCESSING"}},upsert=False)
 		v = Viaggio(0,0,0,[])
 		v.fromJSON(doc)
-		v.punti = v.punti[:30] ###
+		#v.punti = v.punti[:30] ###
 		return v
 	else:
 		print u"Non sono stati trovato viaggi da processare."
